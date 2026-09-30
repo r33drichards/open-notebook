@@ -6,6 +6,7 @@ from surrealdb import RecordID
 
 from open_notebook.database.repository import ensure_record_id, repo_query
 from open_notebook.domain.base import ObjectModel
+from open_notebook.exceptions import ConfigurationError
 
 
 async def _resolve_model_config(
@@ -29,6 +30,17 @@ async def _resolve_model_config(
 
         await provision_provider_keys(model.provider)
     provider = model.provider
+    if provider == "chatgpt":
+        # podcast-creator builds models via esperanto's AIFactory; importing
+        # chatgpt_plan registers the provider there. Pass a fresh access token.
+        from open_notebook.ai import chatgpt_plan
+
+        if not model.credential:
+            raise ConfigurationError(
+                "ChatGPT plan models must be linked to a ChatGPT sign-in credential"
+            )
+        token = await chatgpt_plan.get_access_token(str(model.credential))
+        return (provider, model.name, {"api_key": token})
     if provider == "anthropic_compatible":
         provider, config = await resolve_anthropic_compatible_config(config)
     if max_tokens is not None:

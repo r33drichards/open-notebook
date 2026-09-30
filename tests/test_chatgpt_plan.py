@@ -315,3 +315,28 @@ async def test_list_models_filters_visibility():
     with patch.object(cp.httpx, "AsyncClient", lambda **kw: real(transport=transport, **kw)):
         models = await cp.list_models("tok")
     assert models == [{"name": "gpt-a", "description": "GPT A"}]
+
+
+def test_esperanto_factory_creates_chatgpt_models():
+    """podcast-creator calls AIFactory.create_language(provider, name, config)."""
+    from esperanto import AIFactory
+
+    model = AIFactory.create_language("chatgpt", "gpt-x", config={"api_key": "tok"})
+    assert isinstance(model, cp.ChatGPTPlanLanguageModel)
+    lc = model.to_langchain()
+    assert lc.model_name == "gpt-x"
+    assert lc.access_token.get_secret_value() == "tok"
+
+
+@pytest.mark.asyncio
+async def test_podcast_model_config_uses_fresh_token():
+    from open_notebook.ai.models import Model
+    from open_notebook.podcasts import models as pm
+
+    model = Model(name="gpt-x", provider="chatgpt", type="language", credential="credential:1")
+    with patch.object(Model, "get", AsyncMock(return_value=model)), patch.object(
+        cp, "get_access_token", AsyncMock(return_value="fresh")
+    ):
+        assert await pm._resolve_model_config("model:1", max_tokens=100) == (
+            "chatgpt", "gpt-x", {"api_key": "fresh"}
+        )

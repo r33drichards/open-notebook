@@ -41,6 +41,9 @@ from typing import (
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx
+from esperanto import LanguageModel
+from esperanto.common_types import ChatCompletion
+from esperanto.common_types.response import Choice, Message
 from langchain_core.callbacks import (
     AsyncCallbackManagerForLLMRun,
     CallbackManagerForLLMRun,
@@ -788,53 +791,64 @@ def _to_langchain_messages(messages: List[Dict[str, Any]]) -> List[BaseMessage]:
     return converted
 
 
-def build_language_model(model_name: str, access_token: str):
-    """Esperanto LanguageModel wrapper so the model fits ModelManager/provision."""
-    from esperanto import LanguageModel
-    from esperanto.common_types import ChatCompletion
-    from esperanto.common_types.response import Choice, Message
+@dataclass
+class ChatGPTPlanLanguageModel(LanguageModel):
+    """
+    Esperanto LanguageModel for the ChatGPT plan, so the provider fits both
+    ModelManager/provision and esperanto's AIFactory (used by podcast-creator).
+    ``api_key`` carries a current OAuth access token.
+    """
 
-    @dataclass
-    class ChatGPTPlanLanguageModel(LanguageModel):
-        def __post_init__(self):
-            super().__post_init__()
+    @property
+    def provider(self) -> str:
+        return PROVIDER
 
-        @property
-        def provider(self) -> str:
-            return PROVIDER
+    def _get_default_model(self) -> str:
+        return self.model_name or ""
 
-        def _get_default_model(self) -> str:
-            return model_name
+    def _get_models(self):
+        return []
 
-        def _get_models(self):
-            return []
+    def to_langchain(self) -> ChatGPTPlanChatModel:
+        return ChatGPTPlanChatModel(
+            model_name=self.model_name or "",
+            access_token=SecretStr(self.api_key or ""),
+        )
 
-        def to_langchain(self) -> ChatGPTPlanChatModel:
-            return ChatGPTPlanChatModel(
-                model_name=self.model_name or model_name,
-                access_token=SecretStr(self.api_key or ""),
-            )
+    def _completion(self, text: str) -> ChatCompletion:
+        return ChatCompletion(
+            id=f"chatgpt-{uuid.uuid4().hex}",
+            choices=[
+                Choice(
+                    index=0,
+                    message=Message(role="assistant", content=text),
+                    finish_reason="stop",
+                )
+            ],
+            model=self.model_name or "",
+            provider=PROVIDER,
+        )
 
-        def _completion(self, text: str) -> ChatCompletion:
-            return ChatCompletion(
-                id=f"chatgpt-{uuid.uuid4().hex}",
-                choices=[
-                    Choice(
-                        index=0,
-                        message=Message(role="assistant", content=text),
-                        finish_reason="stop",
-                    )
-                ],
-                model=self.model_name or model_name,
-                provider=PROVIDER,
-            )
+    def chat_complete(self, messages, stream=None, **kwargs):  # type: ignore[override]
+        result = self.to_langchain().invoke(_to_langchain_messages(messages))
+        return self._completion(_text_of(result.content))
 
-        def chat_complete(self, messages, stream=None, **kwargs):  # type: ignore[override]
-            result = self.to_langchain().invoke(_to_langchain_messages(messages))
-            return self._completion(_text_of(result.content))
+    async def achat_complete(self, messages, stream=None, **kwargs):  # type: ignore[override]
+        result = await self.to_langchain().ainvoke(_to_langchain_messages(messages))
+        return self._completion(_text_of(result.content))
 
-        async def achat_complete(self, messages, stream=None, **kwargs):  # type: ignore[override]
-            result = await self.to_langchain().ainvoke(_to_langchain_messages(messages))
-            return self._completion(_text_of(result.content))
 
+def build_language_model(model_name: str, access_token: str) -> ChatGPTPlanLanguageModel:
     return ChatGPTPlanLanguageModel(api_key=access_token, model_name=model_name)
+
+
+def register_with_esperanto() -> None:
+    """Let esperanto's AIFactory create ``chatgpt`` models (podcast-creator does)."""
+    from esperanto import AIFactory
+
+    AIFactory._provider_modules["language"][PROVIDER] = (
+        f"{__name__}:ChatGPTPlanLanguageModel"
+    )
+
+
+register_with_esperanto()
