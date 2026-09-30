@@ -52,6 +52,8 @@ class ProviderSpec:
     # For providers exposing an OpenAI-compatible GET /models endpoint,
     # the discovery URL. Drives OPENAI_COMPAT_PROVIDERS in model_discovery.
     openai_compat_discovery_url: Optional[str] = None
+    # Credentials come from an OAuth sign-in flow, never from API keys/env vars.
+    oauth_only: bool = False
 
     def env_config(self) -> Dict[str, List[str]]:
         """Env var config in the legacy PROVIDER_ENV_CONFIG dict shape."""
@@ -285,6 +287,16 @@ _PROVIDER_SPECS: Tuple[ProviderSpec, ...] = (
             # No openai_compat_discovery_url: anthropic-compatible discovery uses
             # Anthropic's GET /v1/models with x-api-key + anthropic-version headers
             # (bespoke), not the OpenAI-compatible GET /models discovery table.
+        ),
+        ProviderSpec(
+            name="chatgpt",
+            display_name="ChatGPT plan",
+            modalities=_LANGUAGE_ONLY,
+            test_model=None,  # Bespoke: Sign in with ChatGPT OAuth, see ai/chatgpt_plan.py
+            oauth_only=True,
+            docs_url="https://developers.openai.com/siwc/token-sharing-open-source",
+            # No API key or env vars: credentials come only from the Sign in with
+            # ChatGPT flow (POST /api/chatgpt/authorize + /api/chatgpt/callback).
         ),
 )
 

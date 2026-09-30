@@ -43,6 +43,7 @@ KNOWN_GOOD_PROVIDERS = [
     "vertex",
     "openai_compatible",
     "anthropic_compatible",
+    "chatgpt",
 ]
 
 
@@ -68,7 +69,7 @@ class TestProviderRegistryIsTheSourceOfTruth:
             assert spec.name == name
             assert spec.display_name
             assert spec.modalities, f"{name} has no modalities"
-            assert spec.required_env or spec.required_any_env, (
+            assert spec.oauth_only or spec.required_env or spec.required_any_env, (
                 f"{name} has no env var configuration"
             )
             if spec.openai_compat_discovery_url:

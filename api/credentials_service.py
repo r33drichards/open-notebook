@@ -263,6 +263,27 @@ async def test_credential(credential_id: str) -> dict:
         provider = cred.provider.lower()
 
         # Handle special providers
+        if provider == "chatgpt":
+            from open_notebook.ai import chatgpt_plan
+
+            token = await chatgpt_plan.get_access_token(credential_id)
+            models = await chatgpt_plan.list_models(token)
+            if not models:
+                return {
+                    "provider": provider,
+                    "success": False,
+                    "message": "Signed in, but no models are available for this ChatGPT account",
+                }
+            lc_model = chatgpt_plan.ChatGPTPlanChatModel(
+                model_name=models[0]["name"], access_token=SecretStr(token)
+            )
+            await lc_model.ainvoke("Say OK")
+            return {
+                "provider": provider,
+                "success": True,
+                "message": f"Connection successful (ChatGPT plan, {models[0]['name']})",
+            }
+
         if provider == "ollama":
             base_url = config.get("base_url", "http://localhost:11434")
             success, message = await _test_ollama_connection(base_url)

@@ -161,6 +161,11 @@ async def list_credentials_by_provider(provider: str):
 @router.post("", response_model=CredentialResponse, status_code=201)
 async def create_credential(request: CreateCredentialRequest):
     """Create a new credential."""
+    if request.provider == "chatgpt":
+        raise HTTPException(
+            status_code=400,
+            detail="ChatGPT plan credentials are created with Continue with ChatGPT",
+        )
     try:
         require_encryption_key()
     except ValueError as e:
@@ -384,6 +389,12 @@ async def delete_credential(
                 await model.delete()
                 deleted_models += 1
 
+        if cred.provider == "chatgpt":
+            # End the renewable ChatGPT session before forgetting the tokens.
+            from open_notebook.ai import chatgpt_plan
+
+            await chatgpt_plan.revoke(cred)
+
         # Delete the credential
         await cred.delete()
 
@@ -422,7 +433,16 @@ async def discover_models_for_credential(credential_id: str):
         config = cred.to_esperanto_config()
         provider = cred.provider.lower()
 
-        discovered = await discover_with_config(provider, config)
+        if provider == "chatgpt":
+            from open_notebook.ai import chatgpt_plan
+
+            token = await chatgpt_plan.get_access_token(credential_id)
+            discovered = [
+                {**m, "provider": provider}
+                for m in await chatgpt_plan.list_models(token)
+            ]
+        else:
+            discovered = await discover_with_config(provider, config)
 
         return DiscoverModelsResponse(
             credential_id=cred.id or "",

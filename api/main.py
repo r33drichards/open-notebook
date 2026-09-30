@@ -26,6 +26,7 @@ from api.routers import (
     auth,
     capabilities,
     chat,
+    chatgpt,
     config,
     credentials,
     embedding,
@@ -401,6 +402,7 @@ app.include_router(speaker_profiles.router, prefix="/api", tags=["speaker-profil
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(source_chat.router, prefix="/api", tags=["source-chat"])
 app.include_router(credentials.router, prefix="/api", tags=["credentials"])
+app.include_router(chatgpt.router, prefix="/api", tags=["chatgpt"])
 app.include_router(providers.router, prefix="/api", tags=["providers"])
 app.include_router(capabilities.router, prefix="/api", tags=["capabilities"])
 app.include_router(languages.router, prefix="/api", tags=["languages"])

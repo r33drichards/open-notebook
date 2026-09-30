@@ -78,6 +78,20 @@ async def resolve_anthropic_compatible_config(
     return "anthropic", config
 
 
+async def _get_chatgpt_plan_model(model: "Model") -> ModelType:
+    """Build a ChatGPT-plan model with a freshly refreshed OAuth access token."""
+    from open_notebook.ai import chatgpt_plan
+
+    if model.type != "language":
+        raise ConfigurationError("ChatGPT plan only supports language models")
+    if not model.credential:
+        raise ConfigurationError(
+            "ChatGPT plan models must be linked to a ChatGPT sign-in credential"
+        )
+    token = await chatgpt_plan.get_access_token(str(model.credential))
+    return chatgpt_plan.build_language_model(model.name, token)
+
+
 class Model(ObjectModel):
     table_name: ClassVar[str] = "model"
     nullable_fields: ClassVar[set[str]] = {"credential"}
@@ -217,6 +231,9 @@ class ModelManager:
             "text_to_speech",
         ]:
             raise ConfigurationError(f"Invalid model type: {model.type}")
+
+        if model.provider == "chatgpt":
+            return await _get_chatgpt_plan_model(model)
 
         # Build config from credential if linked, otherwise fall back to env vars
         config: dict = {}

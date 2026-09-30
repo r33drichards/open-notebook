@@ -31,6 +31,7 @@ import { ModelTestResultDialog } from './ModelTestResultDialog'
 import { CredentialFormDialog } from './CredentialFormDialog'
 import { DeleteCredentialDialog } from './DeleteCredentialDialog'
 import { DiscoverModelsDialog } from './DiscoverModelsDialog'
+import { ChatGPTSignInDialog } from './ChatGPTSignInDialog'
 
 interface CredentialItemProps {
   credential: Credential
@@ -53,7 +54,9 @@ export function CredentialItem({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [discoverOpen, setDiscoverOpen] = useState(false)
   // Full credential data needed for edit form
-  const { data: fullCredential } = useCredential(editOpen ? credential.id : '')
+  const { data: fullCredential } = useCredential(
+    editOpen && credential.provider !== 'chatgpt' ? credential.id : ''
+  )
 
   const linkedModels = models.filter(m => m.credential === credential.id)
   const activeTypes = new Set<string>(linkedModels.map(m => m.type))
@@ -205,8 +208,15 @@ export function CredentialItem({
 
       </div>
 
-      {/* Edit dialog */}
-      {editOpen && (
+      {/* Edit dialog: a ChatGPT sign-in is "edited" by signing in again */}
+      {editOpen && credential.provider === 'chatgpt' && (
+        <ChatGPTSignInDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          credentialId={credential.id}
+        />
+      )}
+      {editOpen && credential.provider !== 'chatgpt' && (
         <CredentialFormDialog
           open={editOpen}
           onOpenChange={setEditOpen}

@@ -84,10 +84,12 @@ class TestOpenAICompatTable:
             "cohere",
             "azure",
             "vertex",
+            "chatgpt",
         }
         # Azure/Vertex intentionally have no env-based discovery
         assert PROVIDER_DISCOVERY_FUNCTIONS["azure"] is None
         assert PROVIDER_DISCOVERY_FUNCTIONS["vertex"] is None
+        assert PROVIDER_DISCOVERY_FUNCTIONS["chatgpt"] is None
 
     def test_module_level_names_preserved(self):
         for provider in OPENAI_COMPAT_PROVIDERS:

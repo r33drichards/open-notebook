@@ -878,6 +878,7 @@ PROVIDER_DISCOVERY_FUNCTIONS = {
     "cohere": discover_cohere_models,
     "azure": None,  # Azure requires credential-based discovery (different auth)
     "vertex": None,  # Vertex requires credential-based discovery (service account)
+    "chatgpt": None,  # Sign in with ChatGPT OAuth tokens: credential-based discovery
 }
 
 
