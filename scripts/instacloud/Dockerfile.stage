@@ -1,0 +1,10 @@
+
+# --- InstaCloud (appended by scripts/instacloud/deploy.sh; not part of upstream builds) ---
+# Single-container variant (app + SurrealDB). InstaCloud gives a compute service
+# one persistent volume at /data, so both data directories live on it.
+FROM single AS instacloud
+RUN rm -rf /mydata /app/data \
+ && ln -s /data/surrealdb /mydata \
+ && ln -s /data/notebook /app/data
+ENTRYPOINT ["/bin/sh", "-c", "mkdir -p /data/surrealdb /data/notebook && exec /app/scripts/docker-entrypoint.sh \"$@\"", "--"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
